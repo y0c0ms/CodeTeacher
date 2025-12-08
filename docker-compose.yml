@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  codelab:
+    build: .
+    ports:
+      - "4173:4173"
+      - "8787:8787"
+    environment:
+      - GO_RUNNER_PORT=8787
+      - DATABASE_URL=postgres://codelab:codelab@db:5432/codelab?sslmode=disable
+      # Optional: provide your secrets here or via .env file
+      # - VITE_APP_PASSPHRASE=
+      # - VITE_GEMINI_API_KEY=
+      # - VITE_GEMINI_MODEL=models/gemini-2.5-flash
+      # - VITE_GITHUB_TOKEN=
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=codelab
+      - POSTGRES_PASSWORD=codelab
+      - POSTGRES_DB=codelab
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
