@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const sources: { key: ExerciseSourceKey; label: string; description: string }[] = [
   { key: "bregman", label: "go-exercises", description: "Beginner-friendly exercises with solutions." },
@@ -46,6 +47,11 @@ const Home = () => {
           <p className="text-muted-foreground mt-2">
             Choose a source below. Your code and runs will stay tied to the exercise.
           </p>
+          <div className="mt-3">
+            <Button variant="secondary" onClick={() => navigate("/learn")}>
+              Explore learning path (learngo)
+            </Button>
+          </div>
         </div>
 
         {anyError ? (

@@ -45,7 +45,35 @@ const fetchJson = async (url: string) => {
   return response.json();
 };
 
+const decodeBase64 = (b64: string) => {
+  try {
+    const cleaned = b64.replace(/\s+/g, "");
+    if (typeof TextDecoder !== "undefined") {
+      const bytes = Uint8Array.from(atob(cleaned), (c) => c.charCodeAt(0));
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+    return Buffer.from(cleaned, "base64").toString("utf8");
+  } catch {
+    return "";
+  }
+};
+
 const fetchText = async (url: string, fallback: string) => {
+  // If this is a raw.githubusercontent URL, switch to the GitHub Contents API to avoid CORS issues.
+  const rawMatch = url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+  if (rawMatch) {
+    const [, owner, repo, ref, path] = rawMatch;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${ref}`;
+    const res = await fetch(apiUrl, { headers });
+    if (!res.ok) return fallback;
+    const data = (await res.json()) as { content?: string };
+    if (data.content) {
+      const decoded = decodeBase64(data.content);
+      return decoded || fallback;
+    }
+    return fallback;
+  }
+
   const response = await fetch(url, { headers });
   if (!response.ok) return fallback;
   return response.text();
@@ -70,10 +98,13 @@ const fetchPlutovList = async (): Promise<ExerciseMeta[]> => {
 };
 
 const fetchPlutovDetail = async (slug: string): Promise<ExerciseDetail> => {
-  const readmeUrl = `${PLUTOV_BASE}/${slug}/README.md`;
   const files = (await fetchJson(`${PLUTOV_BASE}/${slug}`)) as { name: string; download_url?: string }[];
 
-  const description = await fetchText(readmeUrl, "No README found for this exercise.");
+  const readmeFile = files.find((f) => f.name.toLowerCase() === "readme.md");
+  const description = await fetchText(
+    readmeFile?.download_url ?? `${PLUTOV_BASE}/${slug}/README.md`,
+    "No README found for this exercise.",
+  );
 
   // Try to find a non-test go file as a "solution"
   const solutionFile = files.find(

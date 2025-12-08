@@ -7,6 +7,7 @@ import PassphraseGate from "@/components/PassphraseGate";
 import Home from "./pages/Home";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import Learn from "./pages/Learn";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ const App = () => (
             <Route path="/" element={<Home />} />
             <Route path="/exercise/:source/:slug" element={<Index />} />
             <Route path="/exercise" element={<Navigate to="/" replace />} />
+            <Route path="/learn" element={<Learn />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

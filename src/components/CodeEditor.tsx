@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import Editor from "@monaco-editor/react";
 
 interface CodeEditorProps {
   initialCode: string;
@@ -12,35 +13,31 @@ const CodeEditor = ({ initialCode, onChange }: CodeEditorProps) => {
     setCode(initialCode);
   }, [initialCode]);
 
-  const lines = code.split("\n");
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newCode = e.target.value;
-    setCode(newCode);
-    onChange?.(newCode);
-  };
+  const editorOptions = useMemo(
+    () => ({
+      fontSize: 14,
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      smoothScrolling: true,
+      wordWrap: "on",
+    }),
+    [],
+  );
 
   return (
-    <div className="h-full bg-[hsl(var(--editor-bg))] rounded-lg overflow-hidden flex">
-      {/* Line numbers */}
-      <div className="select-none py-4 px-3 text-right text-muted-foreground font-mono text-sm bg-[hsl(var(--editor-line))] border-r border-border">
-        {lines.map((_, idx) => (
-          <div key={idx} className="leading-6">
-            {idx + 1}
-          </div>
-        ))}
-      </div>
-
-      {/* Code area */}
-      <div className="flex-1 relative">
-        <textarea
-          value={code}
-          onChange={handleChange}
-          spellCheck={false}
-          className="absolute inset-0 w-full h-full p-4 font-mono text-sm bg-transparent text-foreground resize-none outline-none leading-6"
-          style={{ caretColor: "hsl(var(--primary))" }}
-        />
-      </div>
+    <div className="h-full bg-[hsl(var(--editor-bg))] rounded-lg overflow-hidden border border-border">
+      <Editor
+        height="100%"
+        defaultLanguage="go"
+        theme="vs-dark"
+        value={code}
+        options={editorOptions}
+        onChange={(val) => {
+          const next = val ?? "";
+          setCode(next);
+          onChange?.(next);
+        }}
+      />
     </div>
   );
 };

@@ -9,6 +9,8 @@ import AiAssistantPanel from "@/components/AiAssistantPanel";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExerciseDetail, fetchExerciseList, ExerciseSourceKey } from "@/lib/exerciseSources";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import AnalysisDialog, { TestRunResult } from "@/components/AnalysisDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 
 const placeholderCode = `package main
@@ -28,6 +30,10 @@ const Index = () => {
   const [userCodeCache, setUserCodeCache] = useState<Record<string, string>>({});
   const [solutionApplied, setSolutionApplied] = useState(false);
   const [aiCollapsed, setAiCollapsed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<TestRunResult | null>(null);
   const [terminalLines, setTerminalLines] = useState<
     { type: "info" | "error" | "success" | "output"; content: string }[]
   >([]);
@@ -59,7 +65,9 @@ const Index = () => {
     } else if (!exerciseDetailQuery.isLoading && (!selectedSlug || !selectedSource)) {
       navigate("/");
     }
-  }, [exerciseDetailQuery.data, exerciseDetailQuery.isLoading, userCodeCache, navigate, selectedSlug, selectedSource]);
+    // Intentionally omit userCodeCache to avoid overwriting solution view when cache updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseDetailQuery.data, exerciseDetailQuery.isLoading, navigate, selectedSlug, selectedSource]);
 
   const persistCode = (slug: string | undefined, value: string) => {
     if (!slug || !selectedSource) return;
@@ -84,6 +92,7 @@ const Index = () => {
   }, []);
 
   const handleRun = async () => {
+    setIsRunning(true);
     setTerminalLines([{ type: "info", content: "Running code..." }]);
 
     try {
@@ -131,17 +140,150 @@ const Index = () => {
           content: "Ensure `npm run go:runner` is running and Go is installed locally.",
         },
       ]);
+    } finally {
+      setIsRunning(false);
     }
   };
 
-  const handleSubmit = () => {
-    setTerminalLines([
-      {
-        type: "info",
-        content:
-          "Submission checks are not wired yet. Add a Go backend to compile and test solutions.",
-      },
-    ]);
+  const padCell = (value: string, width: number) => {
+    const str = value.length > width ? `${value.slice(0, width - 3)}...` : value;
+    return str.padEnd(width, " ");
+  };
+
+  const truncate = (value: string, max = 1200) =>
+    value.length > max ? `${value.slice(0, max)}...` : value;
+
+  const summarizeStdout = (stdout?: string, limit = 5) => {
+    if (!stdout) return [];
+    const shouldSkip = (line: string) =>
+      /^\{.*"Time":/.test(line) || // go test -json envelope
+      /^=== RUN/.test(line) ||
+      /^--- (PASS|FAIL)/.test(line) ||
+      /^ok\s+/.test(line) ||
+      /^FAIL\s+/.test(line);
+
+    const lines = stdout
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((l) => !shouldSkip(l));
+
+    const slice = lines.slice(0, limit);
+    const result = slice.map((l) => ({ type: "info" as const, content: l }));
+    if (lines.length > slice.length) {
+      result.push({ type: "info" as const, content: `... (${lines.length - slice.length} more lines)` });
+    }
+    return result;
+  };
+
+  const buildFailureTable = (result: TestRunResult) => {
+    const summary = result.summary ?? { total: 0, passed: 0, failed: 0 };
+    const lines: { type: "info" | "error" | "success" | "output"; content: string }[] = [];
+
+    if (result.status === "error") {
+      lines.push({
+        type: "error",
+        content: `Build failed in ${result.durationMs} ms.`,
+      });
+    } else {
+      lines.push({
+        type: "error",
+        content: `${summary.failed} test(s) failed in ${result.durationMs} ms.`,
+      });
+    }
+
+    const failedTests = result.tests?.filter((t) => t.passed === false) ?? [];
+    if (failedTests.length) {
+      const header = `${padCell("Test", 26)} | ${padCell("Expected", 24)} | ${padCell("Got", 24)}`;
+      const divider = "-".repeat(header.length);
+      lines.push({ type: "error", content: header });
+      lines.push({ type: "error", content: divider });
+      failedTests.forEach((t) => {
+        lines.push({
+          type: "error",
+          content: `${padCell(t.name, 26)} | ${padCell(t.expected ?? "—", 24)} | ${padCell(t.actual ?? "—", 24)}`,
+        });
+        if (t.output?.length) {
+          lines.push({ type: "info", content: t.output.join(" ") });
+        }
+      });
+    }
+
+    if (result.packageOutput?.length) {
+      result.packageOutput.forEach((out) => lines.push({ type: "error", content: out }));
+    }
+    if (result.stderr) {
+      lines.push({ type: "error", content: truncate(result.stderr) });
+    }
+    if (result.stdout) {
+      lines.push({ type: "info", content: truncate(result.stdout) });
+    }
+    if (result.error) {
+      lines.push({ type: "error", content: result.error });
+    }
+    if (result.message) {
+      lines.push({ type: "info", content: result.message });
+    }
+    return lines;
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedSource || !selectedSlug) {
+      setTerminalLines([{ type: "error", content: "Pick an exercise before submitting." }]);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setAnalysisOpen(false);
+    setAnalysisResult(null);
+    setTerminalLines([{ type: "info", content: "Running tests..." }]);
+
+    try {
+      const res = await fetch("http://localhost:8787/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, source: selectedSource, slug: selectedSlug }),
+      });
+
+      const data = (await res.json()) as TestRunResult & { message?: string; error?: string };
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Test run failed (${res.status})`);
+      }
+
+      if (data.status === "missing_tests") {
+        setTerminalLines([
+          { type: "info", content: "No tests were found for this exercise yet." },
+        ]);
+        return;
+      }
+
+      if (data.status === "pass") {
+        setAnalysisResult(data);
+        setAnalysisOpen(true);
+        const lines: { type: "info" | "error" | "success" | "output"; content: string }[] = [
+          {
+            type: "success",
+            content: `All ${data.summary.passed}/${data.summary.total} tests passed in ${data.durationMs} ms.`,
+          },
+        ];
+        lines.push(...summarizeStdout(data.stdout));
+        setTerminalLines(lines);
+        return;
+      }
+
+      setTerminalLines(buildFailureTable(data));
+    } catch (err) {
+      setTerminalLines([
+        { type: "error", content: (err as Error).message },
+        {
+          type: "info",
+          content: "Ensure `npm run go:runner` is running and Go is installed locally.",
+        },
+      ]);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSolutionToggle = () => {
@@ -192,6 +334,11 @@ const Index = () => {
     ? () => navigate(`/exercise/${next.source}/${next.slug}`)
     : undefined;
 
+  const handleSelectChange = (value: string) => {
+    const source = selectedSource ?? "bregman";
+    navigate(`/exercise/${source}/${value}`);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-background">
       <Header
@@ -218,7 +365,7 @@ const Index = () => {
               <div className="w-64">
                 <Select
                   value={selectedSlug ?? ""}
-                  onValueChange={setSelectedSlug}
+                  onValueChange={handleSelectChange}
                   disabled={exerciseListQuery.isLoading}
                 >
                   <SelectTrigger>
@@ -327,6 +474,8 @@ const Index = () => {
             onSubmit={handleSubmit}
             onRun={handleRun}
             onSolution={handleSolutionToggle}
+            submitting={isSubmitting}
+            running={isRunning}
           />
 
           {/* Terminal */}
@@ -335,6 +484,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      <AnalysisDialog
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
+        result={analysisResult}
+      />
     </div>
   );
 };

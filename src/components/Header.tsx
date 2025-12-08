@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface HeaderProps {
   chapter: string;
@@ -12,7 +13,9 @@ const Header = ({ chapter, lesson, onPrev, onNext }: HeaderProps) => {
   return (
     <header className="h-14 border-b border-border bg-card flex items-center justify-between px-4">
       <div className="flex items-center gap-4">
-        <h1 className="text-lg font-bold text-primary font-mono">CodeLab</h1>
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition">
+          <span className="text-lg font-bold text-primary font-mono">CodeLab</span>
+        </Link>
         
         {/* Progress dots placeholder */}
         <div className="hidden md:flex items-center gap-1">
