@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchLearnModules,
@@ -23,15 +24,10 @@ import {
   ChevronUp,
   ChevronDown,
   Copy,
+  Sparkles,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-const CodeBlock = ({ code }: { code: string }) => (
-  <pre className="bg-[hsl(var(--editor-bg))] rounded-md p-4 text-sm font-mono whitespace-pre-wrap border border-border">
-    {code || "// No content"}
-  </pre>
-);
 
 const CodeFence = ({
   inline,
@@ -114,14 +110,12 @@ const Learn = () => {
   const modules = modulesQuery.data ?? [];
   const activeModule = moduleDetailQuery.data;
 
-  // Default-select the first module when loaded
   useEffect(() => {
     if (!selectedSlug && modules.length) {
       setSelectedSlug(modules[0].slug);
     }
   }, [modules, selectedSlug]);
 
-  // Default-select the first lesson when module data arrives
   useEffect(() => {
     if (activeModule && activeModule.lessons.length > 0 && !selectedLesson) {
       setSelectedLesson(activeModule.lessons[0]);
@@ -178,38 +172,53 @@ const Learn = () => {
 
       return (
         <div className="border border-border rounded-md overflow-hidden h-[640px]">
-          <iframe
-            src={pdfContentQuery.data}
-            title={selectedLesson.name}
-            className="w-full h-full"
-          />
+          <iframe src={pdfContentQuery.data} title={selectedLesson.name} className="w-full h-full" />
         </div>
       );
     }
 
-    return <CodeBlock code={content} />;
+    return (
+      <pre className="bg-[hsl(var(--editor-bg))] rounded-md p-4 text-sm font-mono whitespace-pre-wrap border border-border">
+        {content || "// No content"}
+      </pre>
+    );
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Learn</p>
-            <h1 className="text-3xl font-bold text-foreground mt-1">Go Learning Path (learngo)</h1>
-            <p className="text-muted-foreground mt-2">
-              Content from inancgumus/learngo (CC BY-NC-SA 4.0). Click a module to explore its examples.
+      <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Learning path</p>
+            <h1 className="text-3xl font-bold text-foreground">Go essentials</h1>
+            <p className="text-muted-foreground max-w-2xl">
+              Browse the learngo modules (markdown, PDFs, code) and pair them with practice exercises. Use AI
+              for hints and the runner for quick tests.
             </p>
+            <div className="flex flex-wrap gap-3">
+              <Button asChild size="lg" className="gap-2">
+                <Link to="/">Back to exercises</Link>
+              </Button>
+              {modules.length ? (
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="gap-2"
+                  onClick={() => {
+                    setShowModules(true);
+                    setSelectedSlug(modules[0].slug);
+                    setSelectedLesson(null);
+                  }}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Start with modules
+                </Button>
+              ) : null}
+            </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowModules((v) => !v)}
-            className="gap-2"
-          >
-            {showModules ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            {showModules ? "Hide modules" : "Show modules"}
-          </Button>
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            Beta
+          </Badge>
         </div>
 
         {modulesQuery.error ? (
@@ -221,12 +230,20 @@ const Learn = () => {
 
         <div className="grid md:grid-cols-3 gap-4">
           {showModules ? (
-          <Card className={`${showModules ? "md:col-span-1" : "hidden"} border-border shadow-sm`}>
-              <CardHeader>
+            <Card className="border-border shadow-sm md:col-span-1">
+              <CardHeader className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
                   Modules
                 </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowModules(false)}
+                  aria-label="Hide modules"
+                >
+                  <EyeOff className="h-4 w-4" />
+                </Button>
               </CardHeader>
               <CardContent className="p-0">
                 {modulesQuery.isLoading ? (
@@ -255,7 +272,17 @@ const Learn = () => {
                 )}
               </CardContent>
             </Card>
-          ) : null}
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full md:w-auto flex items-center gap-2"
+              onClick={() => setShowModules(true)}
+            >
+              <Eye className="h-4 w-4" />
+              Show modules
+            </Button>
+          )}
 
           <Card className={`${showModules ? "md:col-span-2" : "md:col-span-3"} border-border shadow-sm`}>
             <CardHeader>
@@ -322,12 +349,7 @@ const Learn = () => {
                           Preview: {selectedLesson.name}
                         </p>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={handlePrev}
-                            disabled={!activeModule || lessonIndex <= 0}
-                          >
+                          <Button variant="ghost" size="icon" onClick={handlePrev} disabled={!activeModule || lessonIndex <= 0}>
                             <ChevronLeft className="h-4 w-4" />
                           </Button>
                           <Button
@@ -366,4 +388,3 @@ const Learn = () => {
 };
 
 export default Learn;
-

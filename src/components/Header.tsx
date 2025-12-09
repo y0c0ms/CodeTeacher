@@ -16,7 +16,16 @@ const Header = ({ chapter, lesson, onPrev, onNext }: HeaderProps) => {
         <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition">
           <span className="text-lg font-bold text-primary font-mono">CodeLab</span>
         </Link>
-        
+
+        <nav className="hidden md:flex items-center gap-4 text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <Link to="/learn" className="hover:text-foreground">
+            Learning Path
+          </Link>
+        </nav>
+
         {/* Progress dots placeholder */}
         <div className="hidden md:flex items-center gap-1">
           {[...Array(12)].map((_, i) => (

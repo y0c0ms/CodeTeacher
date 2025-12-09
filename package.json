@@ -4,14 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm:go:runner\" \"npm:dev:frontend\"",
+    "dev": "concurrently \"npm:api\" \"npm:dev:frontend\"",
     "dev:frontend": "vite",
+    "api": "node server/api.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "preview:host": "vite preview --host --port 4173",
-    "start:prod": "concurrently \"npm:go:runner\" \"npm:preview:host\"",
+    "preview:host": "node server/serve-dist.mjs",
+    "start:prod": "concurrently \"npm:api\" \"npm:preview:host\"",
     "go:runner": "node server/go-runner.cjs"
   },
   "dependencies": {
@@ -56,6 +57,7 @@
     "lucide-react": "^0.462.0",
     "monaco-editor": "^0.52.2",
     "next-themes": "^0.3.0",
+    "pg": "^8.16.3",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
@@ -69,8 +71,10 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "tmp": "^0.2.5",
+    "uuid": "^13.0.0",
     "vaul": "^0.9.9",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "concurrently": "^9.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -80,7 +84,6 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
-    "concurrently": "^9.1.2",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",

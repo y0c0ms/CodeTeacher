@@ -1,13 +1,13 @@
-version: "3.9"
 
 services:
   codelab:
     build: .
     ports:
       - "4173:4173"
-      - "8787:8787"
+      - "3001:3001"
     environment:
-      - GO_RUNNER_PORT=8787
+      - API_PORT=3001
+      - VITE_API_BASE=http://localhost:3001
       - DATABASE_URL=postgres://codelab:codelab@db:5432/codelab?sslmode=disable
       # Optional: provide your secrets here or via .env file
       # - VITE_APP_PASSPHRASE=
@@ -17,6 +17,11 @@ services:
     depends_on:
       - db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   db:
     image: postgres:16

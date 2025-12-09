@@ -37,6 +37,8 @@ export interface Exercise {
     hints?: string[];
   };
   source?: string;
+  hasSolution?: boolean;
+  hasTests?: boolean;
 }
 
 interface ExercisePanelProps {
@@ -46,7 +48,21 @@ interface ExercisePanelProps {
 const ExercisePanel = ({ exercise }: ExercisePanelProps) => {
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-foreground">{exercise.title}</h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-bold text-foreground">{exercise.title}</h1>
+        <div className="flex items-center gap-2">
+          {exercise.hasSolution ? (
+            <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">
+              Solution available
+            </span>
+          ) : null}
+          {exercise.hasTests ? (
+            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
+              Tests available
+            </span>
+          ) : null}
+        </div>
+      </div>
 
       <div className="prose prose-sm dark:prose-invert max-w-none">
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{exercise.description}</ReactMarkdown>

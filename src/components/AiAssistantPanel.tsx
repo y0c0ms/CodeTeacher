@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, MessageCircle, Wand2, Sparkles } from "lucide-react";
+import { Loader2, MessageCircle, Wand2, Sparkles, Lightbulb, ListChecks } from "lucide-react";
 import { callGemini, getConfiguredModel } from "@/lib/gemini";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 type Message = {
   role: "user" | "assistant";
@@ -33,6 +35,7 @@ const AiAssistantPanel = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggestedCode, setSuggestedCode] = useState<string | null>(null);
+  const [includeCode, setIncludeCode] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -64,15 +67,25 @@ const AiAssistantPanel = ({
     }
   }, [messages, loading]);
 
-  const sendPrompt = async (prompt: string, mode: "chat" | "help") => {
+  const sendPrompt = async (prompt: string, mode: "chat" | "help" | "hint" | "tests") => {
     if (!hasContext) return;
     setLoading(true);
     setError(null);
 
-    const userMessage =
-      mode === "help"
-        ? `Help me out with a working Go solution. Here is my current code:\n\n${currentCode}\n\nProvide a corrected solution with a brief rationale.`
-        : prompt;
+    let userMessage: string;
+    if (mode === "help") {
+      userMessage = `Help me out with a working Go solution. Here is my current code:\n\n${currentCode}\n\nProvide a corrected solution with a brief rationale.`;
+    } else if (mode === "hint") {
+      userMessage = "Give me a short hint only. Do not provide the full solution.";
+    } else if (mode === "tests") {
+      userMessage = "Suggest a few focused test cases for this problem (just list them).";
+    } else {
+      userMessage = prompt;
+    }
+
+    if (includeCode && mode === "chat") {
+      userMessage += `\n\nCurrent code for reference:\n${currentCode}`;
+    }
 
     const fullPrompt = [
       baseContext,
@@ -87,7 +100,11 @@ const AiAssistantPanel = ({
     const shownUserMessage =
       mode === "help"
         ? "Help me out (generate a solution based on my current code)."
-        : prompt;
+        : mode === "hint"
+          ? "Quick hint"
+          : mode === "tests"
+            ? "Suggest tests"
+            : prompt;
 
     setMessages((prev) => [...prev, { role: "user", content: shownUserMessage }]);
 
@@ -113,6 +130,16 @@ const AiAssistantPanel = ({
   const handleHelp = () => {
     if (loading) return;
     void sendPrompt("", "help");
+  };
+
+  const handleHint = () => {
+    if (loading) return;
+    void sendPrompt("", "hint");
+  };
+
+  const handleTests = () => {
+    if (loading) return;
+    void sendPrompt("", "tests");
   };
 
   const handleApplySolution = () => {
@@ -161,6 +188,23 @@ const AiAssistantPanel = ({
             <Sparkles className="h-4 w-4" />
             Apply solution
           </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <Button variant="ghost" size="sm" onClick={handleHint} disabled={loading} className="gap-2">
+          <Lightbulb className="h-4 w-4" />
+          Quick hint
+        </Button>
+        <Button variant="ghost" size="sm" onClick={handleTests} disabled={loading} className="gap-2">
+          <ListChecks className="h-4 w-4" />
+          Suggest tests
+        </Button>
+        <div className="flex items-center gap-2 ml-auto">
+          <Switch id="include-code" checked={includeCode} onCheckedChange={setIncludeCode} />
+          <Label htmlFor="include-code" className="text-xs text-muted-foreground">
+            Include my code in chat
+          </Label>
         </div>
       </div>
 
